@@ -10,6 +10,19 @@
             height: 100vh;
             flex-direction: column;
             margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #87CEEB, #FFB6C1);
+            animation: backgroundAnimation 10s infinite alternate;
+            transition: background 0.5s ease-in-out;
+        }
+
+        @keyframes backgroundAnimation {
+            0% {
+                background: linear-gradient(135deg, #87CEEB, #FFB6C1);
+            }
+            100% {
+                background: linear-gradient(135deg, #FFD700, #1E90FF);
+            }
         }
 
         h1 {
@@ -26,6 +39,19 @@
             width: 30px;
             height: 30px;
             text-align: center;
+            transition: background 0.3s ease-in-out;
+            border: 1px solid #aaa;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .sudoku-cell:focus {
+            outline: none;
+            background: #FFFFA6; /* A light yellow color */
+        }
+
+        .highlight {
+            background: #FFECB3; /* Soft orange highlight */
         }
 
         .button-container {
@@ -33,9 +59,64 @@
             display: flex;
             gap: 10px;
         }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #4682B4; /* Steel blue */
+            color: white;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+
+        button:hover {
+            transform: scale(1.1);
+            background-color: #1E90FF;
+        }
+
+        .theme-toggle-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        #theme-toggle {
+            background-color: #FFD700; /* Golden */
+            color: #333;
+            padding: 10px 15px;
+        }
+
+        #theme-toggle:hover {
+            background-color: #FFC107;
+        }
+
+        .dark-mode {
+            background: linear-gradient(135deg, #333, #555);
+            color: #fff;
+        }
+
+        .dark-mode .sudoku-cell {
+            border-color: #777;
+            color: white;
+        }
+
+        .dark-mode .highlight {
+            background: #444;
+        }
+
+        .dark-mode button {
+            background-color: #555;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
+    <div class="theme-toggle-container">
+        <button id="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
+    </div>
+
     <h1>Sudoku Game</h1>
     <div id="sudoku-grid"></div>
     <div class="button-container">
@@ -47,8 +128,9 @@
     <script>
         const grid = document.getElementById('sudoku-grid');
         const solutionGrid = Array.from({ length: 9 }, () => Array(9).fill(0));
+        let isDarkMode = false;
 
-        // Generates a Sudoku puzzle
+        // Generate a new Sudoku puzzle
         function generateSudoku() {
             grid.innerHTML = ''; // Clear the grid
             let newGrid = generateRandomSudoku();
@@ -56,15 +138,16 @@
 
             for (let i = 0; i < 9; i++) {
                 for (let j = 0; j < 9; j++) {
-                    let cell = document.createElement('input');
+                    const cell = document.createElement('input');
                     cell.type = 'number';
                     cell.min = 1;
                     cell.max = 9;
                     cell.className = 'sudoku-cell';
                     cell.addEventListener('input', limitInput);
+                    cell.addEventListener('focus', () => highlightCell(i, j));
+                    cell.addEventListener('blur', () => removeHighlights());
 
                     if (Math.random() < 0.5) {
-                        // Hide some cells for the puzzle
                         cell.value = '';
                     } else {
                         cell.value = newGrid[i][j];
@@ -74,7 +157,7 @@
                 }
             }
 
-            document.getElementById('solution-button').style.display = 'none'; // Hide solution button
+            document.getElementById('solution-button').style.display = 'none'; // Hide the solution button
         }
 
         // Generate a valid random Sudoku
@@ -82,7 +165,7 @@
             let base = Array.from({ length: 9 }, (_, i) => i + 1);
             shuffleArray(base);
 
-            let grid = Array.from({ length: 9 }, () => Array(9).fill(0));
+            const grid = Array.from({ length: 9 }, () => Array(9).fill(0));
             for (let i = 0; i < 9; i++) {
                 for (let j = 0; j < 9; j++) {
                     grid[i][j] = base[(i * 3 + Math.floor(i / 3) + j) % 9];
@@ -91,7 +174,6 @@
             return grid;
         }
 
-        // Fisher-Yates shuffle for row/column shuffling
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -99,7 +181,6 @@
             }
         }
 
-        // Input validation to ensure only 1-9 values
         function limitInput(event) {
             const value = parseInt(event.target.value, 10);
             if (value < 1 || value > 9 || isNaN(value)) {
@@ -107,19 +188,29 @@
             }
         }
 
-        // Copy grid
-        function copyGrid(src, dest) {
-            for (let i = 0; i < 9; i++) {
-                for (let j = 0; j < 9; j++) {
-                    dest[i][j] = src[i][j];
+        function highlightCell(row, col) {
+            const cells = document.querySelectorAll('.sudoku-cell');
+
+            cells.forEach(cell => cell.classList.remove('highlight'));
+
+            for (let i = 0; i < 81; i++) {
+                const currRow = Math.floor(i / 9);
+                const currCol = i % 9;
+
+                if (currRow === row || currCol === col || (Math.floor(currRow / 3) === Math.floor(row / 3) && Math.floor(currCol / 3) === Math.floor(col / 3))) {
+                    cells[i].classList.add('highlight');
                 }
             }
         }
 
-        // Check Sudoku
+        function removeHighlights() {
+            const cells = document.querySelectorAll('.sudoku-cell');
+            cells.forEach(cell => cell.classList.remove('highlight'));
+        }
+
         function checkSudoku() {
             const cells = document.querySelectorAll('.sudoku-cell');
-            let userGrid = Array.from({ length: 9 }, () => Array(9).fill(0));
+            const userGrid = Array.from({ length: 9 }, () => Array(9).fill(0));
             let valid = true;
 
             cells.forEach((cell, index) => {
@@ -127,11 +218,7 @@
                 const col = index % 9;
                 const value = parseInt(cell.value, 10);
 
-                if (!isNaN(value)) {
-                    userGrid[row][col] = value;
-                } else {
-                    userGrid[row][col] = 0; // Keep zeros for empty cells
-                }
+                userGrid[row][col] = isNaN(value) ? 0 : value;
             });
 
             valid &= checkRows(userGrid);
@@ -146,25 +233,22 @@
             }
         }
 
-        // Check rows
         function checkRows(grid) {
             return grid.every(row => row.filter(Boolean).length === new Set(row).size);
         }
 
-        // Check columns
         function checkCols(grid) {
             for (let col = 0; col < 9; col++) {
-                let column = grid.map(row => row[col]);
+                const column = grid.map(row => row[col]);
                 if (column.filter(Boolean).length !== new Set(column).size) return false;
             }
             return true;
         }
 
-        // Check 3x3 subgrids
         function checkSubgrids(grid) {
             for (let boxRow = 0; boxRow < 3; boxRow++) {
                 for (let boxCol = 0; boxCol < 3; boxCol++) {
-                    let subgrid = [];
+                    const subgrid = [];
                     for (let row = boxRow * 3; row < boxRow * 3 + 3; row++) {
                         for (let col = boxCol * 3; col < boxCol * 3 + 3; col++) {
                             subgrid.push(grid[row][col]);
@@ -176,7 +260,6 @@
             return true;
         }
 
-        // Show solution
         function showSolution() {
             const cells = document.querySelectorAll('.sudoku-cell');
             cells.forEach((cell, index) => {
@@ -188,7 +271,20 @@
             });
         }
 
-        generateSudoku(); // Generate the initial Sudoku when loaded
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode', isDarkMode);
+        }
+
+        function copyGrid(src, dest) {
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    dest[i][j] = src[i][j];
+                }
+            }
+        }
+
+        generateSudoku();
     </script>
 </body>
 </html>
